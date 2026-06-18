@@ -225,6 +225,7 @@ function loadData() {
     .finally(function() {
       btn.disabled = false;
       icon.classList.remove('spinning');
+      setTimeout(function(){ location.reload(); }, 500);
     });
 }
 
