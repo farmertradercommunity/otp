@@ -112,13 +112,9 @@
 // =============================================
 // KONFIGURASI — jangan ubah bagian lain
 // =============================================
-var SHEET_ID   = "14wFAGyGefzx67IIJmjiqfEtQEM9iA7Eix-ndYuydLcI";
-var SHEET_NAME = "Sheet1";
-var EMAIL_ADDR = "farmertradecommunity@gmail.com"; // ganti dengan email utama lo
+var WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzj09kClyKc69VagJNpc9Uqyk_XzOUG2CyjfHQNmJE8ZbPhUEpC6RGRgFX02575HyZ3/exec";
+var EMAIL_ADDR  = "farmertradecommunity@gmail.com"; // ganti dengan email utama lo
 // =============================================
-
-var API_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID
-            + "/gviz/tq?tqx=out:json&sheet=" + encodeURIComponent(SHEET_NAME);
 
 document.getElementById('shared-email').textContent = EMAIL_ADDR;
 
@@ -200,38 +196,30 @@ function loadData() {
   btn.disabled = true;
   icon.classList.add('spinning');
 
-  var url = API_URL + "&t=" + Date.now(); // cache buster
+  // Query langsung ke Apps Script Web App — scan Gmail saat itu juga
+  fetch(WEB_APP_URL + "?t=" + Date.now())
+    .then(function(r){ return r.json(); })
+    .then(function(json) {
+      if (json.status !== 'ok') throw new Error('API error');
 
-  fetch(url)
-    .then(function(r){ return r.text(); })
-    .then(function(raw) {
-      // Google Sheets gviz returns: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
-      var json = JSON.parse(raw.replace(/^[^\{]+/, '').replace(/[^}]+$/, ''));
-      var rows = json.table.rows;
-
-      var items = [];
-      rows.forEach(function(row) {
-        if (!row.c) return;
-        var ts   = row.c[0] && row.c[0].v ? row.c[0].v : '';
-        var from = row.c[1] && row.c[1].v ? row.c[1].v : '';
-        var subj = row.c[2] && row.c[2].v ? row.c[2].v : '';
-        var otp  = row.c[3] && row.c[3].v ? String(row.c[3].v) : '';
-        if (otp && ts) {
-          items.push({ ts: ts, from: from, subject: subj, otp: otp });
-        }
+      var items = json.data.map(function(d) {
+        return {
+          ts      : d.timestamp,
+          from    : d.from,
+          subject : d.subject,
+          otp     : String(d.otp)
+        };
       });
 
-      // Tampilkan terbaru di atas
-      items.reverse();
       renderList(items);
 
       var now = new Date();
       document.getElementById('last-update').textContent =
-        'Update: ' + now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
+        'Update: ' + now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
     })
     .catch(function(err) {
       document.getElementById('otp-list').innerHTML =
-        '<div class="error-msg">Gagal memuat data. Pastikan Google Sheet sudah di-share publik (Viewer).</div>';
+        '<div class="error-msg">Gagal memuat data. Cek koneksi atau coba refresh.</div>';
       console.error(err);
     })
     .finally(function() {
