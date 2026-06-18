@@ -1,2 +1,0 @@
-# otp
-OTP Email FTC
