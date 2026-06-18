@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OTP Inbox — Tim Internal</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f6fa;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
+  .header{text-align:center;margin-bottom:2rem}
+  .logo{display:inline-flex;align-items:center;gap:10px;margin-bottom:8px}
+  .logo-icon{width:44px;height:44px;border-radius:12px;background:#1a73e8;display:flex;align-items:center;justify-content:center}
+  .logo-icon svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .logo-text{font-size:22px;font-weight:600;color:#1a1a2e}
+  .subtitle{font-size:13px;color:#888;margin-top:4px}
+  .card{background:#fff;border:1px solid #e8e8e8;border-radius:16px;padding:1.5rem;width:100%;max-width:540px}
+  .email-row{display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f5f6fa;border-radius:10px;margin-bottom:1rem}
+  .email-icon{color:#888;flex-shrink:0}
+  .email-addr{flex:1;font-size:14px;font-weight:500;color:#1a1a2e;word-break:break-all}
+  .btn-copy{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:8px;border:1px solid #e0e0e0;background:#fff;cursor:pointer;font-size:13px;color:#444;transition:all 0.15s;white-space:nowrap}
+  .btn-copy:hover{background:#f0f0f0}
+  .btn-copy.copied{color:#0f9d58;border-color:#0f9d58}
+  .btn-refresh{width:100%;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:10px;border:none;background:#1a73e8;color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s;margin-bottom:1.25rem}
+  .btn-refresh:hover{background:#1666c9}
+  .btn-refresh:active{transform:scale(0.99)}
+  .btn-refresh:disabled{background:#a8c7fa;cursor:not-allowed}
+  .divider{display:flex;align-items:center;gap:10px;margin-bottom:1rem}
+  .divider span{font-size:12px;color:#aaa;white-space:nowrap}
+  .divider-line{flex:1;height:1px;background:#f0f0f0}
+  .otp-list{display:flex;flex-direction:column;gap:8px;min-height:60px}
+  .otp-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid #f0f0f0;border-radius:10px;background:#fff;transition:background 0.1s}
+  .otp-item:hover{background:#fafafa}
+  .otp-item.new{animation:fadeIn 0.4s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  .otp-badge{min-width:76px;text-align:center;padding:6px 10px;border-radius:8px;font-size:20px;font-weight:700;letter-spacing:4px;background:#e8f0fe;color:#1a73e8;font-family:'Courier New',monospace}
+  .otp-meta{flex:1;min-width:0}
+  .otp-sender{font-size:13px;font-weight:500;color:#1a1a2e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .otp-time{font-size:12px;color:#aaa;margin-top:2px}
+  .btn-otp-copy{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;border:1px solid #e8e8e8;background:transparent;cursor:pointer;color:#888;transition:all 0.15s;flex-shrink:0}
+  .btn-otp-copy:hover{background:#f0f0f0;color:#444}
+  .btn-otp-copy.ok{border-color:#0f9d58;color:#0f9d58}
+  .empty{text-align:center;padding:2.5rem 1rem;color:#bbb}
+  .empty-icon{font-size:36px;margin-bottom:8px}
+  .empty p{font-size:13px}
+  .status-bar{display:flex;align-items:center;justify-content:space-between;font-size:12px;color:#aaa;padding-top:12px;border-top:1px solid #f0f0f0;margin-top:8px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#34a853;display:inline-block;margin-right:5px}
+  .spinning{animation:spin 0.8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a2e;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;opacity:0;transition:opacity 0.2s;pointer-events:none;z-index:99}
+  .toast.show{opacity:1}
+  .error-msg{text-align:center;padding:1rem;font-size:13px;color:#d93025;background:#fce8e6;border-radius:8px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+    </div>
+    <span class="logo-text">OTP Inbox</span>
+  </div>
+  <p class="subtitle">Shared inbox khusus tim internal · read-only</p>
+</div>
+
+<div class="card">
+
+  <!-- Email address row -->
+  <div class="email-row">
+    <span class="email-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94"/></svg>
+    </span>
+    <span class="email-addr" id="shared-email">Memuat...</span>
+    <button class="btn-copy" id="btn-copy-email" onclick="copyEmail()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      <span id="copy-label">Copy</span>
+    </button>
+  </div>
+
+  <!-- Refresh button -->
+  <button class="btn-refresh" id="btn-refresh" onclick="loadData()">
+    <svg id="refresh-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    Refresh
+  </button>
+
+  <!-- Divider -->
+  <div class="divider">
+    <div class="divider-line"></div>
+    <span>OTP masuk</span>
+    <div class="divider-line"></div>
+  </div>
+
+  <!-- OTP list -->
+  <div class="otp-list" id="otp-list">
+    <div class="empty"><div class="empty-icon">📭</div><p>Memuat data...</p></div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <span><span class="dot"></span>Auto-refresh tiap 5 menit</span>
+    <span id="last-update">—</span>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// =============================================
+// KONFIGURASI — jangan ubah bagian lain
+// =============================================
+var SHEET_ID   = "14wFAGyGefzx67IIJmjiqfEtQEM9iA7Eix-ndYuydLcI";
+var SHEET_NAME = "Sheet1";
+var EMAIL_ADDR = "farmertradecommunity@gmail.com"; // ganti dengan email utama lo
+// =============================================
+
+var API_URL = "https://docs.google.com/spreadsheets/d/" + SHEET_ID
+            + "/gviz/tq?tqx=out:json&sheet=" + encodeURIComponent(SHEET_NAME);
+
+document.getElementById('shared-email').textContent = EMAIL_ADDR;
+
+function showToast(msg) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 2000);
+}
+
+function copyEmail() {
+  navigator.clipboard.writeText(EMAIL_ADDR);
+  var lbl = document.getElementById('copy-label');
+  var btn = document.getElementById('btn-copy-email');
+  lbl.textContent = 'Copied!';
+  btn.classList.add('copied');
+  showToast('Email berhasil di-copy!');
+  setTimeout(function(){ lbl.textContent='Copy'; btn.classList.remove('copied'); }, 2000);
+}
+
+function copyOTP(code, btn) {
+  navigator.clipboard.writeText(code);
+  btn.classList.add('ok');
+  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+  showToast('OTP ' + code + ' berhasil di-copy!');
+  setTimeout(function(){
+    btn.classList.remove('ok');
+    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+  }, 2000);
+}
+
+function timeAgo(dateStr) {
+  var parts = dateStr.split(/[\/\s:]/);
+  var d = new Date(parts[2], parts[1]-1, parts[0], parts[3], parts[4], parts[5]);
+  var diff = Math.floor((Date.now() - d.getTime()) / 1000);
+  if (diff < 60)  return 'Baru saja';
+  if (diff < 3600) return Math.floor(diff/60) + ' menit lalu';
+  if (diff < 86400) return Math.floor(diff/3600) + ' jam lalu';
+  return Math.floor(diff/86400) + ' hari lalu';
+}
+
+function loadData() {
+  var btn  = document.getElementById('btn-refresh');
+  var icon = document.getElementById('refresh-icon');
+  btn.disabled = true;
+  icon.classList.add('spinning');
+
+  var url = API_URL + "&t=" + Date.now(); // cache buster
+
+  fetch(url)
+    .then(function(r){ return r.text(); })
+    .then(function(raw) {
+      // Google Sheets gviz returns: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+      var json = JSON.parse(raw.replace(/^[^\{]+/, '').replace(/[^}]+$/, ''));
+      var rows = json.table.rows;
+
+      var items = [];
+      rows.forEach(function(row) {
+        if (!row.c) return;
+        var ts   = row.c[0] && row.c[0].v ? row.c[0].v : '';
+        var from = row.c[1] && row.c[1].v ? row.c[1].v : '';
+        var subj = row.c[2] && row.c[2].v ? row.c[2].v : '';
+        var otp  = row.c[3] && row.c[3].v ? String(row.c[3].v) : '';
+        if (otp && ts) {
+          items.push({ ts: ts, from: from, subject: subj, otp: otp });
+        }
+      });
+
+      // Tampilkan terbaru di atas
+      items.reverse();
+      renderList(items);
+
+      var now = new Date();
+      document.getElementById('last-update').textContent =
+        'Update: ' + now.toLocaleTimeString('id-ID', {hour:'2-digit',minute:'2-digit'});
+    })
+    .catch(function(err) {
+      document.getElementById('otp-list').innerHTML =
+        '<div class="error-msg">Gagal memuat data. Pastikan Google Sheet sudah di-share publik (Viewer).</div>';
+      console.error(err);
+    })
+    .finally(function() {
+      btn.disabled = false;
+      icon.classList.remove('spinning');
+    });
+}
+
+function renderList(items) {
+  var el = document.getElementById('otp-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>Belum ada OTP masuk</p></div>';
+    return;
+  }
+  el.innerHTML = items.map(function(d) {
+    var safeOtp  = d.otp.replace(/'/g, "\\'");
+    var sender   = d.from.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    var ago      = timeAgo(d.ts);
+    return '<div class="otp-item new">'
+      + '<span class="otp-badge">' + d.otp + '</span>'
+      + '<div class="otp-meta">'
+        + '<div class="otp-sender">' + sender + '</div>'
+        + '<div class="otp-time">' + d.subject + ' &middot; ' + ago + '</div>'
+      + '</div>'
+      + '<button class="btn-otp-copy" onclick="copyOTP(\'' + safeOtp + '\',this)" aria-label="Copy OTP">'
+        + '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>'
+      + '</button>'
+    + '</div>';
+  }).join('');
+}
+
+// Load pertama kali
+loadData();
+
+// Auto-refresh tiap 5 menit
+setInterval(loadData, 5 * 60 * 1000);
+</script>
+</body>
+</html>
