@@ -97,8 +97,11 @@
 
   <!-- Status bar -->
   <div class="status-bar">
-    <span><span class="dot"></span>Auto-refresh tiap 5 menit</span>
+    <span><span class="dot"></span>Auto-refresh tiap 10 detik</span>
     <span id="last-update">—</span>
+  </div>
+  <div class="status-bar" style="border-top:none;padding-top:4px;margin-top:0">
+    <span id="countdown-bar" style="font-size:12px;color:#aaa">Refresh dalam 10 detik...</span>
   </div>
 
 </div>
@@ -126,25 +129,59 @@ function showToast(msg) {
   setTimeout(function(){ t.classList.remove('show'); }, 2000);
 }
 
-function copyEmail() {
-  navigator.clipboard.writeText(EMAIL_ADDR);
-  var lbl = document.getElementById('copy-label');
-  var btn = document.getElementById('btn-copy-email');
-  lbl.textContent = 'Copied!';
-  btn.classList.add('copied');
-  showToast('Email berhasil di-copy!');
-  setTimeout(function(){ lbl.textContent='Copy'; btn.classList.remove('copied'); }, 2000);
+// Fungsi copy universal — support semua browser
+function copyText(text) {
+  // Cara 1: modern clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text).then(function(){ return true; }).catch(function(){ return fallbackCopy(text); });
+  }
+  // Cara 2: fallback textarea trick
+  return Promise.resolve(fallbackCopy(text));
 }
 
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '-9999px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    return true;
+  } catch(e) {
+    document.body.removeChild(ta);
+    return false;
+  }
+}
+
+function copyEmail() {
+  var lbl = document.getElementById('copy-label');
+  var btn = document.getElementById('btn-copy-email');
+  copyText(EMAIL_ADDR).then(function(){
+    lbl.textContent = 'Copied!';
+    btn.classList.add('copied');
+    showToast('Email berhasil di-copy!');
+    setTimeout(function(){ lbl.textContent='Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+var svgCopy = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
+var svgCheck = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+
 function copyOTP(code, btn) {
-  navigator.clipboard.writeText(code);
-  btn.classList.add('ok');
-  btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-  showToast('OTP ' + code + ' berhasil di-copy!');
-  setTimeout(function(){
-    btn.classList.remove('ok');
-    btn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>';
-  }, 2000);
+  copyText(code).then(function(){
+    btn.classList.add('ok');
+    btn.innerHTML = svgCheck;
+    showToast('OTP ' + code + ' berhasil di-copy!');
+    setTimeout(function(){
+      btn.classList.remove('ok');
+      btn.innerHTML = svgCopy;
+    }, 2000);
+  });
 }
 
 function timeAgo(dateStr) {
@@ -229,8 +266,17 @@ function renderList(items) {
 // Load pertama kali
 loadData();
 
-// Auto-refresh tiap 5 menit
-setInterval(loadData, 5 * 60 * 1000);
+// Auto-refresh tiap 10 detik
+setInterval(loadData, 10 * 1000);
+
+// Countdown timer
+var countdown = 10;
+setInterval(function(){
+  countdown--;
+  if(countdown <= 0){ countdown = 10; }
+  var el = document.getElementById('countdown-bar');
+  if(el) el.textContent = 'Refresh dalam ' + countdown + ' detik...';
+}, 1000);
 </script>
 </body>
 </html>
